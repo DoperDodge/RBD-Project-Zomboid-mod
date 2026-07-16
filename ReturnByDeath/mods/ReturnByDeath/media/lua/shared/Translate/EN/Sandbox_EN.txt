@@ -1,0 +1,51 @@
+Sandbox_EN = {
+	Sandbox_ReturnByDeath = "Return by Death",
+
+	Sandbox_RBD_CheckpointInterval = "Safe point interval (in-game minutes)",
+	Sandbox_RBD_CheckpointInterval_tooltip = "How often the automatic safe point (the place a dying player loops back to) is refreshed.",
+
+	Sandbox_RBD_SafeCheckpointsOnly = "Only auto-anchor when safe",
+	Sandbox_RBD_SafeCheckpointsOnly_tooltip = "Skip automatic safe points while zombies are close or the player is badly hurt, so the loop never anchors inside a death trap. Manual safe points ignore this.",
+
+	Sandbox_RBD_ManualCheckpointCooldown = "Manual safe point cooldown (in-game minutes)",
+	Sandbox_RBD_ManualCheckpointCooldown_tooltip = "Cooldown between uses of the right-click 'Set Safe Point' action. 0 = no cooldown.",
+
+	Sandbox_RBD_RestoreHealth = "Restore body on return",
+	Sandbox_RBD_RestoreHealth_tooltip = "If enabled, a return fully heals wounds and removes the Knox infection - a clean slate at the safe point (lore-accurate). If disabled, injuries carry through the loop.",
+
+	Sandbox_RBD_DeathGuardThreshold = "Return trigger threshold (% health)",
+	Sandbox_RBD_DeathGuardThreshold_tooltip = "Return by Death fires when overall health falls to this value, catching the player at the brink instead of letting the engine kill them. Higher = safer interception, lower = riskier but closer to true death.",
+
+	Sandbox_RBD_DepressionPerLoop = "Depression per loop",
+	Sandbox_RBD_DepressionPerLoop_tooltip = "Unhappiness added to the survivor each time they return by death (0-100 scale).",
+
+	Sandbox_RBD_StressPerLoop = "Stress per loop (%)",
+	Sandbox_RBD_StressPerLoop_tooltip = "Stress added per return, as a percentage of the full stress bar. Stress feeds the Tense moodle.",
+
+	Sandbox_RBD_PanicPerLoop = "Panic per loop",
+	Sandbox_RBD_PanicPerLoop_tooltip = "Panic added per return (0-100 scale).",
+
+	Sandbox_RBD_PenaltyEscalation = "Penalty escalation per loop (%)",
+	Sandbox_RBD_PenaltyEscalation_tooltip = "Each completed loop increases the psychological penalties by this percentage of their base value, so repeated deaths wear the survivor down harder. 0 = penalties never escalate.",
+
+	Sandbox_RBD_MaxReturnsPerDay = "Max returns per day",
+	Sandbox_RBD_MaxReturnsPerDay_tooltip = "Maximum Return by Death activations per in-game day. Once spent, the next death is final. 0 = unlimited.",
+
+	Sandbox_RBD_PlayReturnAudio = "Play return audio",
+	Sandbox_RBD_PlayReturnAudio_tooltip = "Play the Return by Death sound to the returning player.",
+
+	Sandbox_RBD_ShowDeathCause = "Show cause of death on return",
+	Sandbox_RBD_ShowDeathCause_tooltip = "After a return, remind the player what killed them in the previous loop.",
+
+	Sandbox_RBD_EnableTellKill = "Enable 'Tell them about Return by Death'",
+	Sandbox_RBD_EnableTellKill_tooltip = "Allow trait bearers to break the taboo via the right-click menu, instantly killing the player they tell. Server-validated. Disable on servers where an instant PvP kill is unwanted.",
+
+	Sandbox_RBD_TellKillRange = "'Tell them' range (tiles)",
+	Sandbox_RBD_TellKillRange_tooltip = "Maximum distance between the teller and the listener for the taboo kill to be accepted by the server.",
+
+	Sandbox_RBD_WitchScent = "Witch's scent after return",
+	Sandbox_RBD_WitchScent_tooltip = "After a return, the miasma clinging to the survivor briefly attracts nearby zombies. Brutal - off by default.",
+
+	Sandbox_RBD_WitchScentRadius = "Witch's scent radius (tiles)",
+	Sandbox_RBD_WitchScentRadius_tooltip = "How far the post-return miasma pulse attracts zombies from.",
+}

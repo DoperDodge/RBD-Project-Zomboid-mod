@@ -1,0 +1,6 @@
+name=Return by Death (Re:Zero)
+id=ReturnByDeath
+description=Death is a checkpoint. Adds the Return by Death mechanic from Re:Zero as a negative trait: dying loops you back to your last safe point with your inventory intact and no corpse left behind, at the cost of mounting depression, stress and panic. Telling anyone about it is fatal... for them. Fully multiplayer compatible; tune everything in Sandbox settings. Unofficial fan mod.
+poster=poster.png
+url=https://github.com/DoperDodge/RBD-Project-Zomboid-mod
+versionMin=41.78
