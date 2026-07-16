@@ -49,13 +49,15 @@ ReturnByDeath/                     ← Steam Workshop content root
         │   │   └── ReturnByDeath_sounds.txt   ← registers the sound below
         │   └── sound/
         │       └── ReturnByDeath.ogg          ← converted from the repo's mp3
+        ├── common/                ← REQUIRED (even empty) for BUILD 42 to detect the mod
+        │   └── media/
         └── 42/                    ← read by BUILD 42 (versioned layout B42 requires)
             ├── mod.info
             ├── poster.png
             └── media/             ← same content as the B41 media/ tree
 ```
 
-Build 41 reads the mod root (`mod.info` + `media/`) and ignores the `42/` folder; Build 42 only lists mods that have a version subfolder and reads `42/mod.info` + `42/media/`, ignoring the root tree. One Workshop item serves both builds. **If you edit the Lua, edit both trees** (or copy `media/` over `42/media/` before publishing).
+Build 41 reads the mod root (`mod.info` + `media/`) and ignores the `42/` and `common/` folders; Build 42 only lists mods that have **both** a version subfolder (`42/`) and a lowercase `common/` folder — without `common/` the mod silently never appears in the B42 mod list. B42 reads `42/mod.info` + `42/media/` (merged with `common/media/`, which this mod keeps empty), ignoring the root tree. One Workshop item serves both builds. **If you edit the Lua, edit both trees** (or copy `media/` over `42/media/` before publishing).
 
 The source audio (`Return by death audio.mp3`, 12 s) was converted to Ogg Vorbis with:
 `ffmpeg -i "Return by death audio.mp3" -c:a libvorbis -q:a 6 -ar 44100 ReturnByDeath.ogg`
