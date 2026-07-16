@@ -1,0 +1,31 @@
+UI_EN = {
+	UI_trait_ReturnByDeath = "Return by Death",
+	UI_trait_ReturnByDeathDesc = "Death is not the end - it is a checkpoint. Whenever you die you return to your last safe point, but each loop gnaws at your mind. You cannot tell anyone about this power. <LINE> - Death does not stick: you loop back to your safe point <LINE> - No corpse is left behind <LINE> - Each return inflicts depression, stress and panic <LINE> - The Witch punishes those who speak of it",
+
+	UI_RBD_ContextTell = "Tell them about Return by Death...",
+	UI_RBD_ContextTellTooltip = "Break the taboo. The Witch's hand will crush their heart. <LINE> Target: %1",
+	UI_RBD_ContextSetSafePoint = "Set Safe Point (Return by Death)",
+	UI_RBD_ContextSetSafePointTooltip = "Deliberately anchor your loop to this moment. If you die, you will return here with what you carry right now.",
+	UI_RBD_ContextSetSafePointCooldown = "The world resists. You can anchor a new safe point in %1 more in-game minutes.",
+	UI_RBD_ContextReflect = "Reflect on your loops",
+
+	UI_RBD_SafePointSet = "Safe point anchored.",
+	UI_RBD_SafePointAuto = "Your loop quietly re-anchors itself...",
+	UI_RBD_Returned = "Return by Death - Loop #%1",
+	UI_RBD_DiedTo = "You remember dying: %1",
+	UI_RBD_NoCheckpoint = "No safe point anchored - death would be final!",
+	UI_RBD_LimitReached = "The loop rejects you. No more returns today - the next death is final.",
+	UI_RBD_ReflectLine = "I have died %1 times... and no one will ever know.",
+	UI_RBD_ReflectNone = "I have not died yet. I intend to keep it that way.",
+	UI_RBD_WitchKilled = "An unseen hand crushes your heart.",
+	UI_RBD_TellConfirmed = "The Witch silences %1.",
+
+	UI_RBD_Cause_Unknown = "you don't remember how",
+	UI_RBD_Cause_Bite = "torn apart by the infected",
+	UI_RBD_Cause_Infection = "the Knox infection burning you out",
+	UI_RBD_Cause_Fall = "a fall",
+	UI_RBD_Cause_Fire = "burning alive",
+	UI_RBD_Cause_Weapon = "violence",
+	UI_RBD_Cause_Bleed = "bleeding out",
+	UI_RBD_Cause_Witch = "the Witch's hand",
+}

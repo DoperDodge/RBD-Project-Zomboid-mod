@@ -16,5 +16,5 @@ description=
 description=Note on how the loop works: Return by Death fires at the brink of death (a configurable health threshold), so the base-game death pipeline - corpse, death screen - never runs. The world itself is not rewound (loot, zombies and map changes persist); the reset is player-scoped.
 description=
 description=Unofficial fan project. Re:Zero - Starting Life in Another World is the property of Tappei Nagatsuki, KADOKAWA and the respective rights holders. The return audio is fan content; no affiliation or endorsement implied.
-tags=Build 41;Multiplayer;Pop Culture;Traits
+tags=Build 41;Build 42;Multiplayer;Pop Culture;Traits
 visibility=public

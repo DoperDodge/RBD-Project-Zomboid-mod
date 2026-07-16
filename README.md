@@ -2,7 +2,7 @@
 
 Death is not the end — it is a checkpoint.
 
-This mod recreates the **Return by Death** (死に戻り) mechanic from *Re:Zero − Starting Life in Another World* for Project Zomboid **Build 41.78+**, fully multiplayer compatible and packaged ready for the Steam Workshop.
+This mod recreates the **Return by Death** (死に戻り) mechanic from *Re:Zero − Starting Life in Another World* for Project Zomboid — **Build 41.78+ and Build 42** — fully multiplayer compatible and packaged ready for the Steam Workshop.
 
 Built from the design in [PLAN.md](PLAN.md).
 
@@ -37,31 +37,37 @@ ReturnByDeath/                     ← Steam Workshop content root
 ├── workshop.txt                   ← Workshop metadata (title, description, tags)
 └── mods/
     └── ReturnByDeath/
-        ├── mod.info               ← mod id/name/description/poster
-        ├── poster.png             ← in-game mod poster (256×256)
-        └── media/
-            ├── sandbox-options.txt
-            ├── lua/
-            │   ├── shared/        ← trait, core helpers, translations
-            │   ├── client/        ← checkpoint, death guard/return, context menu, FX, net client
-            │   └── server/        ← server-authoritative command handlers
-            ├── scripts/
-            │   └── ReturnByDeath_sounds.txt   ← registers the sound below
-            └── sound/
-                └── ReturnByDeath.ogg          ← converted from the repo's mp3
+        ├── mod.info               ← read by BUILD 41
+        ├── poster.png
+        ├── media/                 ← read by BUILD 41
+        │   ├── sandbox-options.txt
+        │   ├── lua/
+        │   │   ├── shared/        ← trait, core helpers, translations
+        │   │   ├── client/        ← checkpoint, death guard/return, context menu, FX, net client
+        │   │   └── server/        ← server-authoritative command handlers
+        │   ├── scripts/
+        │   │   └── ReturnByDeath_sounds.txt   ← registers the sound below
+        │   └── sound/
+        │       └── ReturnByDeath.ogg          ← converted from the repo's mp3
+        └── 42/                    ← read by BUILD 42 (versioned layout B42 requires)
+            ├── mod.info
+            ├── poster.png
+            └── media/             ← same content as the B41 media/ tree
 ```
+
+Build 41 reads the mod root (`mod.info` + `media/`) and ignores the `42/` folder; Build 42 only lists mods that have a version subfolder and reads `42/mod.info` + `42/media/`, ignoring the root tree. One Workshop item serves both builds. **If you edit the Lua, edit both trees** (or copy `media/` over `42/media/` before publishing).
 
 The source audio (`Return by death audio.mp3`, 12 s) was converted to Ogg Vorbis with:
 `ffmpeg -i "Return by death audio.mp3" -c:a libvorbis -q:a 6 -ar 44100 ReturnByDeath.ogg`
 
 ## Installing locally for testing
 
-Copy `ReturnByDeath/mods/ReturnByDeath` into your `Zomboid/mods` folder:
+Copy `ReturnByDeath/mods/ReturnByDeath` (the whole folder, including the `42/` subfolder) into your `Zomboid/mods` folder:
 
 - Windows: `C:\Users\<you>\Zomboid\mods\ReturnByDeath`
 - Linux: `~/Zomboid/mods/ReturnByDeath`
 
-Enable **Return by Death (Re:Zero)** in Mods from the main menu, then start a new game (or add it to an existing save; sandbox options will use their defaults).
+The same copy works on Build 41 and Build 42 — each build reads its own tree. Enable **Return by Death (Re:Zero)** in Mods from the main menu, then start a new game (or add it to an existing save; sandbox options will use their defaults).
 
 For a dedicated server add `ReturnByDeath` to `Mods=` and the Workshop ID to `WorkshopItems=` in your server ini once published.
 
@@ -93,6 +99,8 @@ On single-player **and** on a dedicated server with 2+ clients:
 
 This is an unofficial fan project. *Re:Zero − Starting Life in Another World* is the property of Tappei Nagatsuki, KADOKAWA and the respective rights holders. The bundled audio is fan content; confirm you are comfortable distributing it on the Workshop before publishing (the Workshop description already carries this disclaimer).
 
-## Build 42
+## Build 42 notes
 
-This mod targets **Build 41.78**. For Build 42 the Workshop layout changes (`mods/ReturnByDeath/42/media/...` + `common/`), and several APIs (death events, sound scripts, context menus) have B42 variants — porting is a follow-up task; the Lua is written defensively (pcall-guarded API calls) to ease it.
+Build 42 requires the versioned mod layout (`mods/ReturnByDeath/42/media/...`), which this repo ships alongside the Build 41 tree — without it, B42's mod list simply doesn't show the mod at all.
+
+The Lua itself is shared between both trees: the events and APIs used (`OnPlayerUpdate`, `OnPlayerDeath`, `EveryOneMinute`, `OnFillWorldObjectContextMenu`, client/server commands, `TraitFactory`, sandbox options, sound scripts) exist in both builds, engine calls are pcall-guarded to degrade gracefully where signatures drift, and the one newer event (`OnPlayerGetDamage`) is registered only if the running build provides it — the update-loop guard covers death interception either way. Test on the build you play (see checklist above) and report console errors from `Zomboid/console.txt`.
