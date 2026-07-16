@@ -1,0 +1,21 @@
+module ReturnByDeath
+{
+	imports
+	{
+		Base
+	}
+
+	sound ReturnByDeathTrigger
+	{
+		category = Player,
+		is3D = false,
+		loop = false,
+		master = Ambient,
+		clip
+		{
+			file = media/sound/ReturnByDeath.ogg,
+			distanceMax = 20,
+			volume = 1.0,
+		}
+	}
+}

@@ -1,0 +1,97 @@
+VERSION = 1,
+
+option ReturnByDeath.CheckpointInterval
+{
+	type = integer, min = 1, max = 240, default = 10,
+	page = ReturnByDeath, translation = RBD_CheckpointInterval,
+}
+
+option ReturnByDeath.SafeCheckpointsOnly
+{
+	type = boolean, default = true,
+	page = ReturnByDeath, translation = RBD_SafeCheckpointsOnly,
+}
+
+option ReturnByDeath.ManualCheckpointCooldown
+{
+	type = integer, min = 0, max = 480, default = 60,
+	page = ReturnByDeath, translation = RBD_ManualCheckpointCooldown,
+}
+
+option ReturnByDeath.RestoreHealth
+{
+	type = boolean, default = true,
+	page = ReturnByDeath, translation = RBD_RestoreHealth,
+}
+
+option ReturnByDeath.DeathGuardThreshold
+{
+	type = integer, min = 1, max = 50, default = 15,
+	page = ReturnByDeath, translation = RBD_DeathGuardThreshold,
+}
+
+option ReturnByDeath.DepressionPerLoop
+{
+	type = integer, min = 0, max = 100, default = 25,
+	page = ReturnByDeath, translation = RBD_DepressionPerLoop,
+}
+
+option ReturnByDeath.StressPerLoop
+{
+	type = integer, min = 0, max = 100, default = 30,
+	page = ReturnByDeath, translation = RBD_StressPerLoop,
+}
+
+option ReturnByDeath.PanicPerLoop
+{
+	type = integer, min = 0, max = 100, default = 60,
+	page = ReturnByDeath, translation = RBD_PanicPerLoop,
+}
+
+option ReturnByDeath.PenaltyEscalation
+{
+	type = integer, min = 0, max = 200, default = 25,
+	page = ReturnByDeath, translation = RBD_PenaltyEscalation,
+}
+
+option ReturnByDeath.MaxReturnsPerDay
+{
+	type = integer, min = 0, max = 50, default = 0,
+	page = ReturnByDeath, translation = RBD_MaxReturnsPerDay,
+}
+
+option ReturnByDeath.PlayReturnAudio
+{
+	type = boolean, default = true,
+	page = ReturnByDeath, translation = RBD_PlayReturnAudio,
+}
+
+option ReturnByDeath.ShowDeathCause
+{
+	type = boolean, default = true,
+	page = ReturnByDeath, translation = RBD_ShowDeathCause,
+}
+
+option ReturnByDeath.EnableTellKill
+{
+	type = boolean, default = true,
+	page = ReturnByDeath, translation = RBD_EnableTellKill,
+}
+
+option ReturnByDeath.TellKillRange
+{
+	type = integer, min = 1, max = 30, default = 10,
+	page = ReturnByDeath, translation = RBD_TellKillRange,
+}
+
+option ReturnByDeath.WitchScent
+{
+	type = boolean, default = false,
+	page = ReturnByDeath, translation = RBD_WitchScent,
+}
+
+option ReturnByDeath.WitchScentRadius
+{
+	type = integer, min = 10, max = 150, default = 40,
+	page = ReturnByDeath, translation = RBD_WitchScentRadius,
+}
