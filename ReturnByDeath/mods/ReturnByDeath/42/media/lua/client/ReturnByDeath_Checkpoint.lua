@@ -32,6 +32,10 @@ local RBD = ReturnByDeath
 local function serializeItem(item)
     local data = { type = item:getFullType() }
 
+    -- unique save-wide id: lets the return erase this exact item from the
+    -- world if it was dropped after the anchor (anti-dupe)
+    pcall(function() data.id = item:getID() end)
+
     pcall(function() data.condition = item:getCondition() end)
 
     if item.IsDrainable and item:IsDrainable() then
@@ -102,11 +106,35 @@ local function serializeLoadout(player)
     return out
 end
 
+--- Create an item by full type, trying every known API generation so a
+--- rename in one build can't break the whole restore.
+local function createItemIn(container, fullType)
+    local item = nil
+    pcall(function() item = container:AddItem(fullType) end)
+    if item then return item end
+    pcall(function()
+        local made = InventoryItemFactory.CreateItem(fullType)
+        if made then
+            pcall(function() container:AddItem(made) end)
+            item = made
+        end
+    end)
+    if item then return item end
+    pcall(function()
+        local made = instanceItem(fullType)
+        if made then
+            pcall(function() container:AddItem(made) end)
+            item = made
+        end
+    end)
+    return item
+end
+
 local function deserializeItem(container, data)
     if not data or not data.type then return nil end
-    local item = container:AddItem(data.type)
+    local item = createItemIn(container, data.type)
     if not item then
-        RBD.log("Unknown item type in anchor: " .. tostring(data.type))
+        RBD.reportError("restore.create", "could not recreate " .. tostring(data.type))
         return nil
     end
     if data.condition ~= nil then pcall(function() item:setCondition(data.condition) end) end
@@ -124,31 +152,113 @@ local function deserializeItem(container, data)
 end
 
 --- Wipe the player's current loadout and rebuild it from the snapshot.
+--- Every step is isolated and failure-logged: one broken item or one
+--- renamed API must never abort the rest of the loadout (a half-restore
+--- is exactly the "wrong clothes, missing items" bug).
 function RBD.restoreInventory(player, snapshot)
     if not snapshot or not snapshot.items then return end
 
-    pcall(function() player:setPrimaryHandItem(nil) end)
-    pcall(function() player:setSecondaryHandItem(nil) end)
+    RBD.try("restore.unequipHands", function()
+        player:setPrimaryHandItem(nil)
+        player:setSecondaryHandItem(nil)
+    end)
 
     -- strip worn clothing first so removal from the container is clean
     local wornMap = buildWornMap(player)
     for item, _ in pairs(wornMap) do
-        pcall(function() player:removeWornItem(item) end)
+        RBD.try("restore.stripWorn", function() player:removeWornItem(item) end)
     end
+
+    RBD.try("restore.clear", function()
+        local inv = player:getInventory()
+        local list = inv:getItems()
+        for i = list:size() - 1, 0, -1 do
+            inv:Remove(list:get(i))
+        end
+    end)
 
     local inv = player:getInventory()
-    local list = inv:getItems()
-    for i = list:size() - 1, 0, -1 do
-        inv:Remove(list:get(i))
-    end
-
+    local restored, failed = 0, 0
     for _, data in ipairs(snapshot.items) do
-        local item = deserializeItem(inv, data)
-        if item then
-            if data.worn then pcall(function() player:setWornItem(data.worn, item) end) end
-            if data.primary then pcall(function() player:setPrimaryHandItem(item) end) end
-            if data.secondary then pcall(function() player:setSecondaryHandItem(item) end) end
+        local ok = RBD.try("restore.item", function()
+            local item = deserializeItem(inv, data)
+            if item then
+                if data.worn then
+                    RBD.try("restore.wear", function() player:setWornItem(data.worn, item) end)
+                end
+                if data.primary then pcall(function() player:setPrimaryHandItem(item) end) end
+                if data.secondary then pcall(function() player:setSecondaryHandItem(item) end) end
+                restored = restored + 1
+            else
+                failed = failed + 1
+            end
+        end)
+        if not ok then failed = failed + 1 end
+    end
+    RBD.log("Loadout restored: " .. restored .. " item(s)"
+        .. (failed > 0 and (", " .. failed .. " FAILED (see errors above)") or ""))
+end
+
+------------------------------------------------------------------------------
+-- Anti-dupe: erase snapshot items left lying in the old timeline
+------------------------------------------------------------------------------
+
+local function collectItemIds(items, into)
+    for _, data in ipairs(items or {}) do
+        if data.id ~= nil then into[data.id] = true end
+        if data.items then collectItemIds(data.items, into) end
+    end
+end
+
+--- Remove ground items matching the snapshot's item ids near the given
+--- spots (death position + anchor position). If you anchored holding a cup
+--- and dropped it before dying, the dropped cup vanishes when the loop
+--- gives you the anchored one back. Only loaded squares can be swept -
+--- items dropped far away in unloaded areas are out of reach.
+function RBD.sweepSnapshotItems(snapshot, spots)
+    if not snapshot or not snapshot.items then return end
+    local ids = {}
+    collectItemIds(snapshot.items, ids)
+    if next(ids) == nil then return end
+
+    local removed = 0
+    RBD.try("worldSweep", function()
+        local cell = getCell()
+        if not cell then return end
+        local seen = {}
+        for _, spot in ipairs(spots) do
+            local px = math.floor(spot.x or 0)
+            local py = math.floor(spot.y or 0)
+            local pz = math.floor(spot.z or 0)
+            for dx = -25, 25 do
+                for dy = -25, 25 do
+                    local sq = cell:getGridSquare(px + dx, py + dy, pz)
+                    if sq and not seen[sq] then
+                        seen[sq] = true
+                        local objs = sq:getWorldObjects()
+                        if objs then
+                            for i = objs:size() - 1, 0, -1 do
+                                local wobj = objs:get(i)
+                                local id = nil
+                                pcall(function() id = wobj:getItem():getID() end)
+                                if id ~= nil and ids[id] then
+                                    local okRemove = pcall(function()
+                                        sq:transmitRemoveItemFromSquare(wobj)
+                                    end)
+                                    if not okRemove then
+                                        pcall(function() wobj:removeFromSquare() end)
+                                    end
+                                    removed = removed + 1
+                                end
+                            end
+                        end
+                    end
+                end
+            end
         end
+    end)
+    if removed > 0 then
+        RBD.log("The loop reclaimed " .. removed .. " item(s) left in the old timeline")
     end
 end
 

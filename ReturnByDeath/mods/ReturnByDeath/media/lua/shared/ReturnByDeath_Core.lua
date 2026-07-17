@@ -124,6 +124,14 @@ function ReturnByDeath.wrap(name, fn)
     end
 end
 
+--- Run fn now; on failure log once (named) and return false. Use this
+--- instead of bare pcall wherever silent failure would hide a real bug.
+function ReturnByDeath.try(where, fn)
+    local ok, err = pcall(fn)
+    if not ok then ReturnByDeath.reportError(where, err) end
+    return ok
+end
+
 ------------------------------------------------------------------------------
 -- API-drift-tolerant player helpers
 ------------------------------------------------------------------------------

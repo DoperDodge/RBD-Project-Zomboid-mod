@@ -8,6 +8,7 @@
 ]]
 
 require "ISUI/ISUIElement"
+require "ReturnByDeath_Core"
 
 RBD_ScreenFX = ISUIElement:derive("RBD_ScreenFX")
 RBD_ScreenFX.active = nil
@@ -18,14 +19,14 @@ function RBD_ScreenFX:new()
     local o = ISUIElement:new(0, 0, w, h)
     setmetatable(o, self)
     self.__index = self
-    o.startMs = getTimestampMs()
+    o.startMs = ReturnByDeath.nowMs()
     o.duration = 2600
     return o
 end
 
 function RBD_ScreenFX:render()
     local ok, err = pcall(function()
-        local elapsed = getTimestampMs() - self.startMs
+        local elapsed = ReturnByDeath.nowMs() - self.startMs
         local t = elapsed / self.duration
         if t >= 1 then
             RBD_ScreenFX.active = nil
