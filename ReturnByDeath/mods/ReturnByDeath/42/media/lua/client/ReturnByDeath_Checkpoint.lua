@@ -1,8 +1,20 @@
 --[[
-    Return by Death - safe point (checkpoint) capture & restore
-    Silently snapshots the player's position and full inventory (main
-    inventory, equipped hands, worn clothing, nested container contents)
-    into their ModData on an interval, plus an initial anchor on spawn.
+    Return by Death - anchor (safe point) system
+
+    Anime-accurate anchoring:
+      * Every AnchorIntervalReal REAL-WORLD minutes (default 5), if the
+        player is calm - no zombie is aggroed on them and none is standing
+        on top of them - the loop silently records an anchor: position +
+        full loadout. If they're not calm, it retries every 15 seconds
+        until they are.
+      * Anchors accumulate in a history (default 10). On death the return
+        goes to the NEWEST anchor whose surroundings are currently safe
+        (at most MaxZombiesAtAnchor zombies within AnchorSafetyRadius
+        tiles); unsafe anchors are stepped back oldest-ward, and if none
+        pass, the least-infested one is used - so the loop never sends you
+        further back than it must.
+      * A first anchor is taken a few seconds after a bearer appears, so
+        no bearer is ever without one.
 
     Runs on: client (each player anchors their own loop).
 ]]
@@ -94,7 +106,7 @@ local function deserializeItem(container, data)
     if not data or not data.type then return nil end
     local item = container:AddItem(data.type)
     if not item then
-        RBD.log("Unknown item type in checkpoint: " .. tostring(data.type))
+        RBD.log("Unknown item type in anchor: " .. tostring(data.type))
         return nil
     end
     if data.condition ~= nil then pcall(function() item:setCondition(data.condition) end) end
@@ -141,51 +153,69 @@ function RBD.restoreInventory(player, snapshot)
 end
 
 ------------------------------------------------------------------------------
--- Checkpoint capture
+-- Zombie proximity / aggro checks
 ------------------------------------------------------------------------------
 
---- A spot is "safe" enough to auto-anchor when the player isn't badly hurt
---- and no zombie is within 15 tiles.
-function RBD.isSafeToAnchor(player)
-    local healthy = true
+--- Count zombies within `radius` tiles of (x, y). When `player` is given,
+--- also count how many of them are actively targeting that player.
+--- Only loaded zombies are visible; an unloaded area counts as clear.
+local function zombiesNear(x, y, radius, player)
+    local near, aggro = 0, 0
     pcall(function()
-        healthy = player:getBodyDamage():getOverallBodyHealth() >= 50
-    end)
-    if not healthy then return false end
-
-    local safe = true
-    pcall(function()
-        local zombies = player:getCell():getZombieList()
-        local px, py = player:getX(), player:getY()
+        local cell = getCell()
+        if not cell then return end
+        local zombies = cell:getZombieList()
+        local r2 = radius * radius
         for i = 0, zombies:size() - 1 do
             local z = zombies:get(i)
             if z and not z:isDead() then
-                local dx, dy = z:getX() - px, z:getY() - py
-                if dx * dx + dy * dy < 225 then -- 15 tiles
-                    safe = false
-                    break
+                local dx, dy = z:getX() - x, z:getY() - y
+                if dx * dx + dy * dy <= r2 then
+                    near = near + 1
+                end
+                if player ~= nil then
+                    local ok, target = pcall(function() return z:getTarget() end)
+                    if ok and target == player then
+                        aggro = aggro + 1
+                    end
                 end
             end
         end
     end)
-    return safe
+    return near, aggro
 end
 
---- Record the player's current position + loadout as the loop's safe point.
+--- "Calm" = the anime rule for when the loop may re-anchor: nothing is
+--- hunting the player and nothing is right on top of them.
+function RBD.isCalm(player)
+    local near, aggro = zombiesNear(player:getX(), player:getY(), 8, player)
+    return aggro == 0 and near == 0
+end
+
+------------------------------------------------------------------------------
+-- Anchor capture & selection
+------------------------------------------------------------------------------
+
+--- Record the player's current position + loadout as the newest anchor.
 function RBD.captureCheckpoint(player, announce)
     if not RBD.hasTrait(player) then return false end
     local ok, err = pcall(function()
         local data = RBD.getData(player)
-        data.checkpoint = {
+        local snapshot = {
             x = player:getX(),
             y = player:getY(),
             z = player:getZ(),
             hours = RBD.worldHours(),
             items = serializeLoadout(player),
         }
+        data.anchors = data.anchors or {}
+        table.insert(data.anchors, snapshot)
+        local cap = RBD.getOption("AnchorHistory")
+        while #data.anchors > cap do table.remove(data.anchors, 1) end
+        data.checkpoint = snapshot -- newest anchor (and pre-anchor-history compat)
     end)
     if not ok then
-        RBD.log("Checkpoint capture failed: " .. tostring(err))
+        RBD.reportError("captureCheckpoint", err)
         return false
     end
     if announce then
@@ -196,58 +226,72 @@ function RBD.captureCheckpoint(player, announce)
     return true
 end
 
-------------------------------------------------------------------------------
--- Automatic interval + initial anchor
-------------------------------------------------------------------------------
-
-local minuteCounters = {}
-local pendingInitial = {}
-
-local function onEveryOneMinute()
-    for i = 0, 3 do
-        local player = getSpecificPlayer(i)
-        if player and player:isLocalPlayer() and not player:isDead()
-                and RBD.hasTrait(player) then
-            local data = RBD.getData(player)
-            minuteCounters[i] = (minuteCounters[i] or 0) + 1
-            if data.checkpoint == nil then
-                -- never leave a trait bearer without an anchor
-                if RBD.captureCheckpoint(player, false) then minuteCounters[i] = 0 end
-            elseif minuteCounters[i] >= RBD.getOption("CheckpointInterval") then
-                if not RBD.getOption("SafeCheckpointsOnly") or RBD.isSafeToAnchor(player) then
-                    RBD.captureCheckpoint(player, false)
-                    minuteCounters[i] = 0
-                end
-                -- if unsafe, retry every minute until the area clears
-            end
+--- Choose where the loop returns: the newest currently-safe anchor, walking
+--- back through history; if every anchor is overrun, the least-infested one.
+function RBD.pickAnchor(player)
+    local data = RBD.getData(player)
+    local anchors = data.anchors
+    if anchors == nil or #anchors == 0 then
+        return data.checkpoint -- saves from before anchor history existed
+    end
+    local maxZombies = RBD.getOption("MaxZombiesAtAnchor")
+    local radius = RBD.getOption("AnchorSafetyRadius")
+    local best, bestCount = nil, nil
+    for i = #anchors, 1, -1 do
+        local anchor = anchors[i]
+        local near = zombiesNear(anchor.x, anchor.y, radius, nil)
+        if near <= maxZombies then
+            return anchor
+        end
+        if bestCount == nil or near < bestCount then
+            best, bestCount = anchor, near
         end
     end
+    return best or anchors[#anchors]
 end
 
-local function onCreatePlayer(index, player)
-    if not player then return end
-    -- defer the first anchor a few seconds so the spawn loadout is settled
-    pendingInitial[index] = 300
-end
+------------------------------------------------------------------------------
+-- Real-time anchor ticker
+------------------------------------------------------------------------------
 
-local function onTickInitial()
-    for index, ticks in pairs(pendingInitial) do
-        if ticks <= 1 then
-            pendingInitial[index] = nil
-            local player = getSpecificPlayer(index)
-            if player and not player:isDead() and RBD.hasTrait(player) then
+local anchorState = {}   -- player index -> { nextMs }
+local tickSkip = 0
+local RETRY_MS = 15000   -- not calm: look again in 15 seconds
+local FIRST_MS = 5000    -- anchorless bearer: first anchor ~5s in
+
+local function onTickAnchors()
+    -- evaluate roughly twice a second, not every frame
+    tickSkip = tickSkip + 1
+    if tickSkip < 30 then return end
+    tickSkip = 0
+
+    local now = RBD.nowMs()
+    for i = 0, 3 do
+        local player = getSpecificPlayer(i)
+        if player and not player:isDead() and RBD.isLocal(player)
+                and RBD.hasTrait(player) then
+            local state = anchorState[i]
+            if state == nil then
                 local data = RBD.getData(player)
-                if data.checkpoint == nil then
-                    RBD.captureCheckpoint(player, false)
-                    RBD.log("Initial safe point anchored for player " .. tostring(index))
+                local anchorless = (data.anchors == nil or #data.anchors == 0)
+                state = { nextMs = now + (anchorless and FIRST_MS
+                    or RBD.getOption("AnchorIntervalReal") * 60000) }
+                anchorState[i] = state
+            end
+            if now >= state.nextMs then
+                local data = RBD.getData(player)
+                local anchorless = (data.anchors == nil or #data.anchors == 0)
+                local calm = not RBD.getOption("SafeCheckpointsOnly") or RBD.isCalm(player)
+                if (calm or anchorless) and RBD.captureCheckpoint(player, false) then
+                    state.nextMs = now + RBD.getOption("AnchorIntervalReal") * 60000
+                else
+                    state.nextMs = now + RETRY_MS
                 end
             end
         else
-            pendingInitial[index] = ticks - 1
+            anchorState[i] = nil
         end
     end
 end
 
-Events.EveryOneMinute.Add(onEveryOneMinute)
-Events.OnCreatePlayer.Add(onCreatePlayer)
-Events.OnTick.Add(onTickInitial)
+Events.OnTick.Add(RBD.wrap("anchorTicker", onTickAnchors))

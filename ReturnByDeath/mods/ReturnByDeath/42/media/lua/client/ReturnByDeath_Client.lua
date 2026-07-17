@@ -35,4 +35,4 @@ local function onServerCommand(module, command, args)
     end
 end
 
-Events.OnServerCommand.Add(onServerCommand)
+Events.OnServerCommand.Add(RBD.wrap("serverCommand", onServerCommand))

@@ -9,13 +9,14 @@ Built from the design in [PLAN.md](PLAN.md).
 ## Features
 
 - **"Return by Death" negative trait** (+1 point) in character creation, with lore description.
-- **Safe point system** — your loop silently anchors your position and full loadout (inventory, equipped hands, worn clothing, nested bag contents, item condition/uses, loaded ammo) on a configurable interval. Auto-anchors are skipped while zombies are nearby or you're badly hurt, so the loop never anchors inside a death trap. You can also right-click anywhere to **Set Safe Point** manually (cooldown-gated).
+- **Anchor system (anime-accurate)** — every few **real-world** minutes (default 5), if you're calm — no zombie aggroed on you, none on top of you — the loop silently anchors your position and full loadout (inventory, equipped hands, worn clothing, nested bag contents, item condition/uses, loaded ammo). If you're mid-fight it retries every 15 seconds. Anchors accumulate in a history (default 10): on death you return to the **newest anchor that is currently safe** (at most 2 zombies within 15 tiles, both tunable), stepping back through older anchors if the newest is overrun — so the loop never sends you further back than it must. A manual right-click **Set Safe Point** exists but is **off by default** (sandbox toggle), since choosing your own return point isn't how it works in the source material.
 - **Return by Death** — at the brink of death you seamlessly loop back to your safe point: teleport, inventory restored, body restored (sandbox-toggleable), **no corpse, no death screen, no click-through**. The Witch's Miasma screen effect (black slam + red heartbeat) marks the reset and the Return by Death audio plays.
 - **Psychological cost** — every loop adds depression, stress and panic. Penalties escalate per loop (configurable), grinding the survivor down the way the loops grind Subaru.
 - **Memory of death** — the mod remembers what killed you ("You remember dying: torn apart by the infected"), keeps a journal of your last 20 loops in ModData, and shows your loop count on every return. Right-click → *Reflect on your loops* for flavor.
 - **The taboo: "Tell them about Return by Death..."** — right-click another player. The Witch's unseen hand crushes their heart: instant, absolute death (their own Return by Death cannot save them). **Server-authoritative**: the teller's client only *requests* the kill; the server validates the feature toggle, the teller's trait, the target and the range before instructing the target's client. Crafted client commands are dropped.
 - **Witch's Scent** (optional, off by default) — a fresh return briefly attracts the dead to the miasma clinging to you.
-- **Sandbox page** with every tunable: checkpoint interval, safe-anchor rule, manual cooldown, health restore, guard threshold, depression/stress/panic per loop, escalation %, max returns per day, audio, death-cause message, taboo kill toggle + range, witch scent + radius.
+- **Sandbox page** with every tunable: anchor interval (real minutes), calm-only anchoring, anchor history size, safe-anchor zombie limit + radius, manual safe point toggle + cooldown, health restore, guard threshold, depression/stress/panic per loop, escalation %, max returns per day, audio, death-cause message, taboo kill toggle + range, witch scent + radius, contract self-grant toggle.
+- **Error containment** — every event handler is wrapped so a failing engine call on a new game build can never spam the on-screen error counter; each unique error is printed once to `console.txt` prefixed `[ReturnByDeath] ERROR`, which is exactly what to paste when reporting problems.
 
 ## How death interception works (please read before reporting bugs)
 
@@ -78,9 +79,10 @@ For a dedicated server add `ReturnByDeath` to `Mods=` and the Workshop ID to `Wo
 On single-player **and** on a dedicated server with 2+ clients:
 
 - [ ] Trait shows in character creation as negative with +1 point and the lore description.
-- [ ] A fresh character auto-anchors a safe point within ~10 seconds of spawning.
-- [ ] Automatic re-anchoring happens on the sandbox interval, and is deferred while zombies are within 15 tiles.
-- [ ] Manual **Set Safe Point** works and respects its cooldown (tooltip shows remaining minutes).
+- [ ] A fresh bearer auto-anchors a safe point within ~10 seconds.
+- [ ] Automatic re-anchoring happens on the real-time interval, and is deferred while zombies are aggroed/adjacent (retries after ~15s).
+- [ ] Dying next to your newest anchor while it's overrun returns you to an older, safer anchor instead.
+- [ ] With **Allow manual safe points** enabled, **Set Safe Point** works and respects its cooldown.
 - [ ] Dying (let a horde chew on you) returns you to the safe point with the exact loadout — worn clothing worn, weapons in hand, bag contents intact — **no corpse, no death screen**, audio + screen effect play, loop counter shows.
 - [ ] Depression/stress/panic visibly rise each loop and escalate on repeated loops.
 - [ ] With `Max returns per day` set, exceeding it produces a warning and then a **final** vanilla death.

@@ -1,15 +1,39 @@
 VERSION = 1,
 
-option ReturnByDeath.CheckpointInterval
+option ReturnByDeath.AnchorIntervalReal
 {
-	type = integer, min = 1, max = 240, default = 10,
-	page = ReturnByDeath, translation = RBD_CheckpointInterval,
+	type = integer, min = 1, max = 60, default = 5,
+	page = ReturnByDeath, translation = RBD_AnchorIntervalReal,
 }
 
 option ReturnByDeath.SafeCheckpointsOnly
 {
 	type = boolean, default = true,
 	page = ReturnByDeath, translation = RBD_SafeCheckpointsOnly,
+}
+
+option ReturnByDeath.AnchorHistory
+{
+	type = integer, min = 2, max = 20, default = 10,
+	page = ReturnByDeath, translation = RBD_AnchorHistory,
+}
+
+option ReturnByDeath.MaxZombiesAtAnchor
+{
+	type = integer, min = 0, max = 10, default = 2,
+	page = ReturnByDeath, translation = RBD_MaxZombiesAtAnchor,
+}
+
+option ReturnByDeath.AnchorSafetyRadius
+{
+	type = integer, min = 5, max = 50, default = 15,
+	page = ReturnByDeath, translation = RBD_AnchorSafetyRadius,
+}
+
+option ReturnByDeath.AllowManualSafePoint
+{
+	type = boolean, default = false,
+	page = ReturnByDeath, translation = RBD_AllowManualSafePoint,
 }
 
 option ReturnByDeath.ManualCheckpointCooldown

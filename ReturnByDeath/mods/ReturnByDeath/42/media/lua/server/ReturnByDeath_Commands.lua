@@ -74,4 +74,4 @@ local function onClientCommand(module, command, player, args)
     end
 end
 
-Events.OnClientCommand.Add(onClientCommand)
+Events.OnClientCommand.Add(RBD.wrap("clientCommand", onClientCommand))
