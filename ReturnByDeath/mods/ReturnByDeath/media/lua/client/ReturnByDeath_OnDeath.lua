@@ -129,6 +129,27 @@ local function applyPenalties(player, loops)
     end)
 end
 
+--- Force the player to a position using every placement API generation;
+--- individual calls may be missing on a given build, so each is isolated.
+function RBD.teleportTo(player, x, y, z)
+    pcall(function() player:setX(x); player:setY(y); player:setZ(z) end)
+    pcall(function() player:setLx(x); player:setLy(y); player:setLz(z) end)
+    pcall(function() player:teleportTo(x, y, z) end)
+    pcall(function()
+        local sq = getCell():getGridSquare(math.floor(x), math.floor(y), math.floor(z))
+        if sq then player:setSquare(sq) end
+    end)
+end
+
+local function distance2To(player, x, y)
+    local d = nil
+    pcall(function()
+        local dx, dy = player:getX() - x, player:getY() - y
+        d = dx * dx + dy * dy
+    end)
+    return d
+end
+
 --- Is a return currently possible (anchor exists, daily limit not spent)?
 function RBD.canReturn(player)
     local data = RBD.getData(player)
@@ -185,8 +206,10 @@ function RBD.triggerReturn(player, damageType)
     data.loops = (data.loops or 0) + 1
 
     local cause = causeText(player, damageType)
-    table.insert(data.deathLog, { loop = data.loops, hours = RBD.worldHours(), cause = cause })
-    while #data.deathLog > 20 do table.remove(data.deathLog, 1) end
+    RBD.try("deathJournal", function()
+        table.insert(data.deathLog, { loop = data.loops, hours = RBD.worldHours(), cause = cause })
+        while #data.deathLog > 20 do table.remove(data.deathLog, 1) end
+    end)
 
     RBD.log("Return by Death #" .. data.loops .. " (" .. cause .. ")")
 
@@ -194,25 +217,35 @@ function RBD.triggerReturn(player, damageType)
     local deathX, deathY, deathZ = 0, 0, 0
     pcall(function() deathX, deathY, deathZ = player:getX(), player:getY(), player:getZ() end)
 
-    -- shield the player while the world snaps back
+    -- shield the player while the world snaps back; the window also keeps
+    -- them PINNED to the anchor in case the engine fights the teleport
     pcall(function() player:setGodMod(true) end)
-    activeReturns[index] = 240 -- ~4s of protection
+    activeReturns[index] = {
+        ticks = 240, -- ~4s of protection
+        x = snapshot.x, y = snapshot.y, z = snapshot.z,
+    }
 
     restoreBody(player)
 
     -- anti-dupe: anything from the snapshot lying on the ground near the
     -- death spot or the anchor belongs to the old timeline - erase it
-    if RBD.sweepSnapshotItems then
+    RBD.try("worldSweepCall", function()
         RBD.sweepSnapshotItems(snapshot, {
             { x = deathX, y = deathY, z = deathZ },
             { x = snapshot.x, y = snapshot.y, z = snapshot.z },
         })
-    end
-
-    RBD.try("teleport", function()
-        player:setX(snapshot.x); player:setY(snapshot.y); player:setZ(snapshot.z)
-        player:setLx(snapshot.x); player:setLy(snapshot.y); player:setLz(snapshot.z)
     end)
+
+    RBD.log(string.format("Returning to anchor %d,%d,%d (died at %d,%d,%d)",
+        math.floor(snapshot.x), math.floor(snapshot.y), math.floor(snapshot.z),
+        math.floor(deathX), math.floor(deathY), math.floor(deathZ)))
+    RBD.teleportTo(player, snapshot.x, snapshot.y, snapshot.z)
+    local dist2 = distance2To(player, snapshot.x, snapshot.y)
+    if dist2 ~= nil and dist2 > 9 then
+        RBD.reportError("teleport",
+            "position did not stick immediately (dist^2=" .. tostring(dist2)
+            .. "); pinning during the return window")
+    end
 
     RBD.try("restoreInventory", function() RBD.restoreInventory(player, snapshot) end)
 
@@ -267,19 +300,33 @@ local function onPlayerUpdate(player)
     if not RBD.isLocal(player) then return end
     local index = RBD.playerIndex(player)
 
-    local ticks = activeReturns[index]
-    if ticks then
+    local ret = activeReturns[index]
+    if ret then
         -- protection window: nothing gets to kill the player mid-return
         local health = 100
         pcall(function() health = player:getBodyDamage():getOverallBodyHealth() end)
         if health <= RBD.getOption("DeathGuardThreshold") then
             restoreBody(player)
         end
-        if ticks <= 1 then
+        -- and nothing gets to keep them at the death spot: re-assert the
+        -- anchor position until the engine accepts it
+        if ret.x ~= nil then
+            local dist2 = distance2To(player, ret.x, ret.y)
+            if dist2 ~= nil and dist2 > 4 then
+                RBD.teleportTo(player, ret.x, ret.y, ret.z)
+            end
+        end
+        ret.ticks = ret.ticks - 1
+        if ret.ticks <= 0 then
             activeReturns[index] = nil
             pcall(function() player:setGodMod(false) end)
-        else
-            activeReturns[index] = ticks - 1
+            local dist2 = ret.x ~= nil and distance2To(player, ret.x, ret.y) or nil
+            if dist2 ~= nil and dist2 > 9 then
+                RBD.reportError("teleport.final",
+                    "player never reached the anchor (dist^2=" .. tostring(dist2) .. ")")
+            else
+                RBD.log("Return complete")
+            end
         end
         return
     end

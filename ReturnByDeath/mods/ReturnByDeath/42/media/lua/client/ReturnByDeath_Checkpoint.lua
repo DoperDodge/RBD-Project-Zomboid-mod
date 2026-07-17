@@ -328,6 +328,12 @@ function RBD.captureCheckpoint(player, announce)
         RBD.reportError("captureCheckpoint", err)
         return false
     end
+    pcall(function()
+        local data = RBD.getData(player)
+        RBD.log(string.format("Anchor recorded at %d,%d,%d (%d in history)",
+            math.floor(player:getX()), math.floor(player:getY()),
+            math.floor(player:getZ()), #data.anchors))
+    end)
     if announce then
         pcall(function()
             player:setHaloNote(getText("UI_RBD_SafePointSet"), 170, 60, 255, 300)
@@ -338,26 +344,39 @@ end
 
 --- Choose where the loop returns: the newest currently-safe anchor, walking
 --- back through history; if every anchor is overrun, the least-infested one.
+--- Logs the decision so console.txt shows exactly what was picked and why.
 function RBD.pickAnchor(player)
-    local data = RBD.getData(player)
-    local anchors = data.anchors
-    if anchors == nil or #anchors == 0 then
-        return data.checkpoint -- saves from before anchor history existed
-    end
-    local maxZombies = RBD.getOption("MaxZombiesAtAnchor")
-    local radius = RBD.getOption("AnchorSafetyRadius")
-    local best, bestCount = nil, nil
-    for i = #anchors, 1, -1 do
-        local anchor = anchors[i]
-        local near = zombiesNear(anchor.x, anchor.y, radius, nil)
-        if near <= maxZombies then
-            return anchor
+    local picked = nil
+    local why = "no anchor available"
+    RBD.try("pickAnchor", function()
+        local data = RBD.getData(player)
+        local anchors = data.anchors
+        if anchors == nil or #anchors == 0 then
+            picked = data.checkpoint -- saves from before anchor history existed
+            if picked then why = "legacy checkpoint" end
+            return
         end
-        if bestCount == nil or near < bestCount then
-            best, bestCount = anchor, near
+        local maxZombies = RBD.getOption("MaxZombiesAtAnchor")
+        local radius = RBD.getOption("AnchorSafetyRadius")
+        local best, bestCount, bestIndex = nil, nil, nil
+        for i = #anchors, 1, -1 do
+            local anchor = anchors[i]
+            local near = zombiesNear(anchor.x, anchor.y, radius, nil)
+            if near <= maxZombies then
+                picked = anchor
+                why = string.format("anchor %d/%d, %d zombie(s) nearby", i, #anchors, near)
+                return
+            end
+            if bestCount == nil or near < bestCount then
+                best, bestCount, bestIndex = anchor, near, i
+            end
         end
-    end
-    return best or anchors[#anchors]
+        picked = best or anchors[#anchors]
+        why = string.format("all %d anchors overrun; least-infested anchor %s (%s zombies)",
+            #anchors, tostring(bestIndex), tostring(bestCount))
+    end)
+    RBD.log("Anchor selection: " .. why)
+    return picked
 end
 
 ------------------------------------------------------------------------------
