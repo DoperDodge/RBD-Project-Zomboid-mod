@@ -136,18 +136,21 @@ local function onFillWorldObjectContextMenu(playerIndex, context, worldobjects, 
         return
     end
 
-    -- manual safe point
-    local data = RBD.getData(player)
-    local cooldown = RBD.getOption("ManualCheckpointCooldown")
-    local sinceManual = (RBD.worldHours() - (data.lastManual or -1000)) * 60
-    local option = context:addOption(getText("UI_RBD_ContextSetSafePoint"),
-        worldobjects, onSetSafePoint, player)
-    if cooldown > 0 and sinceManual < cooldown then
-        option.notAvailable = true
-        addTooltip(option, getText("UI_RBD_ContextSetSafePointCooldown",
-            math.ceil(cooldown - sinceManual)))
-    else
-        addTooltip(option, getText("UI_RBD_ContextSetSafePointTooltip"))
+    -- manual safe point: off by default (the loop anchors itself; see
+    -- ReturnByDeath_Checkpoint.lua), sandbox-enabled for those who want it
+    if RBD.getOption("AllowManualSafePoint") then
+        local data = RBD.getData(player)
+        local cooldown = RBD.getOption("ManualCheckpointCooldown")
+        local sinceManual = (RBD.worldHours() - (data.lastManual or -1000)) * 60
+        local option = context:addOption(getText("UI_RBD_ContextSetSafePoint"),
+            worldobjects, onSetSafePoint, player)
+        if cooldown > 0 and sinceManual < cooldown then
+            option.notAvailable = true
+            addTooltip(option, getText("UI_RBD_ContextSetSafePointCooldown",
+                math.ceil(cooldown - sinceManual)))
+        else
+            addTooltip(option, getText("UI_RBD_ContextSetSafePointTooltip"))
+        end
     end
 
     -- loop journal flavor
@@ -166,4 +169,4 @@ local function onFillWorldObjectContextMenu(playerIndex, context, worldobjects, 
     end
 end
 
-Events.OnFillWorldObjectContextMenu.Add(onFillWorldObjectContextMenu)
+Events.OnFillWorldObjectContextMenu.Add(RBD.wrap("contextMenu", onFillWorldObjectContextMenu))

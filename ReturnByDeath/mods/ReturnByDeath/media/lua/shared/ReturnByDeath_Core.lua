@@ -17,8 +17,12 @@ ReturnByDeath.NET_MODULE = "ReturnByDeath"
 -- Defaults mirror media/sandbox-options.txt; used when SandboxVars are missing
 -- (e.g. a save created before the mod was added).
 ReturnByDeath.Defaults = {
-    CheckpointInterval       = 10,   -- in-game minutes between automatic safe-point updates
-    SafeCheckpointsOnly      = true, -- skip auto checkpoints with zombies nearby / while dying
+    AnchorIntervalReal       = 5,    -- REAL-WORLD minutes between automatic anchors
+    SafeCheckpointsOnly      = true, -- only auto-anchor while calm (no zombies aggroed/close)
+    AnchorHistory            = 10,   -- how many past anchors the loop remembers
+    MaxZombiesAtAnchor       = 2,    -- an anchor is "safe" with at most this many zombies near it
+    AnchorSafetyRadius       = 15,   -- tiles around an anchor checked for zombies on return
+    AllowManualSafePoint     = false,-- right-click "Set Safe Point" (not anime-accurate; off)
     ManualCheckpointCooldown = 60,   -- in-game minutes between manual "Set Safe Point" uses
     RestoreHealth            = true, -- full body reset on return (lore-accurate clean slate)
     DeathGuardThreshold      = 15,   -- % overall health at which the return triggers
@@ -94,6 +98,55 @@ end
 
 function ReturnByDeath.log(msg)
     print("[ReturnByDeath] " .. tostring(msg))
+end
+
+------------------------------------------------------------------------------
+-- Error containment
+-- Every event handler is wrapped so a failing engine call can never spam the
+-- on-screen error counter: each unique error is printed to console.txt ONCE
+-- (grep for "[ReturnByDeath] ERROR") and then swallowed.
+------------------------------------------------------------------------------
+
+local reportedErrors = {}
+
+function ReturnByDeath.reportError(where, err)
+    local key = tostring(where) .. "|" .. tostring(err)
+    if reportedErrors[key] then return end
+    reportedErrors[key] = true
+    print("[ReturnByDeath] ERROR in " .. tostring(where) .. ": " .. tostring(err))
+end
+
+--- Wrap an event handler; errors are logged once instead of thrown.
+function ReturnByDeath.wrap(name, fn)
+    return function(...)
+        local ok, err = pcall(fn, ...)
+        if not ok then ReturnByDeath.reportError(name, err) end
+    end
+end
+
+------------------------------------------------------------------------------
+-- API-drift-tolerant player helpers
+------------------------------------------------------------------------------
+
+--- Is this one of the players simulated on this machine? Falls back to
+--- comparing against the local player slots if isLocalPlayer() is missing.
+function ReturnByDeath.isLocal(player)
+    local ok, res = pcall(function() return player:isLocalPlayer() end)
+    if ok and res ~= nil then return res == true end
+    for i = 0, 3 do
+        if getSpecificPlayer(i) == player then return true end
+    end
+    return false
+end
+
+--- Local player slot index (0-3), tolerant of getPlayerNum() drifting.
+function ReturnByDeath.playerIndex(player)
+    local ok, n = pcall(function() return player:getPlayerNum() end)
+    if ok and type(n) == "number" then return n end
+    for i = 0, 3 do
+        if getSpecificPlayer(i) == player then return i end
+    end
+    return 0
 end
 
 --- Wall-clock milliseconds, tolerant of API differences between builds.

@@ -1,14 +1,26 @@
 Sandbox_EN = {
 	Sandbox_ReturnByDeath = "Return by Death",
 
-	Sandbox_RBD_CheckpointInterval = "Safe point interval (in-game minutes)",
-	Sandbox_RBD_CheckpointInterval_tooltip = "How often the automatic safe point (the place a dying player loops back to) is refreshed.",
+	Sandbox_RBD_AnchorIntervalReal = "Anchor interval (real-world minutes)",
+	Sandbox_RBD_AnchorIntervalReal_tooltip = "How often the loop tries to anchor a new safe point, in real minutes. Anchoring only happens while calm (see below); otherwise it retries every 15 seconds until it can.",
 
-	Sandbox_RBD_SafeCheckpointsOnly = "Only auto-anchor when safe",
-	Sandbox_RBD_SafeCheckpointsOnly_tooltip = "Skip automatic safe points while zombies are close or the player is badly hurt, so the loop never anchors inside a death trap. Manual safe points ignore this.",
+	Sandbox_RBD_SafeCheckpointsOnly = "Only anchor while calm",
+	Sandbox_RBD_SafeCheckpointsOnly_tooltip = "Anchors are only recorded while no zombie is aggroed on the player and none is right next to them - the loop never anchors mid-fight.",
+
+	Sandbox_RBD_AnchorHistory = "Anchors remembered",
+	Sandbox_RBD_AnchorHistory_tooltip = "How many past anchors the loop keeps. If the newest anchor is overrun when you die, the return steps back through older ones.",
+
+	Sandbox_RBD_MaxZombiesAtAnchor = "Max zombies at a safe anchor",
+	Sandbox_RBD_MaxZombiesAtAnchor_tooltip = "An anchor counts as safe to return to when at most this many zombies are within the safety radius of it.",
+
+	Sandbox_RBD_AnchorSafetyRadius = "Anchor safety radius (tiles)",
+	Sandbox_RBD_AnchorSafetyRadius_tooltip = "How far around an anchor zombies are counted when deciding whether it is safe to return there.",
+
+	Sandbox_RBD_AllowManualSafePoint = "Allow manual safe points",
+	Sandbox_RBD_AllowManualSafePoint_tooltip = "Adds a right-click 'Set Safe Point' action. Off by default - in the source material the loop chooses its own anchors.",
 
 	Sandbox_RBD_ManualCheckpointCooldown = "Manual safe point cooldown (in-game minutes)",
-	Sandbox_RBD_ManualCheckpointCooldown_tooltip = "Cooldown between uses of the right-click 'Set Safe Point' action. 0 = no cooldown.",
+	Sandbox_RBD_ManualCheckpointCooldown_tooltip = "Cooldown between uses of the right-click 'Set Safe Point' action (if enabled). 0 = no cooldown.",
 
 	Sandbox_RBD_RestoreHealth = "Restore body on return",
 	Sandbox_RBD_RestoreHealth_tooltip = "If enabled, a return fully heals wounds and removes the Knox infection - a clean slate at the safe point (lore-accurate). If disabled, injuries carry through the loop.",

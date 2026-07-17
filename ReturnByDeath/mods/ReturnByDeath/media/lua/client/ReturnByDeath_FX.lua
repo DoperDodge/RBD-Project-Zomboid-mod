@@ -24,23 +24,31 @@ function RBD_ScreenFX:new()
 end
 
 function RBD_ScreenFX:render()
-    local elapsed = getTimestampMs() - self.startMs
-    local t = elapsed / self.duration
-    if t >= 1 then
-        RBD_ScreenFX.active = nil
-        self:removeFromUIManager()
-        return
-    end
-    local w = getCore():getScreenWidth()
-    local h = getCore():getScreenHeight()
-    self:setWidth(w)
-    self:setHeight(h)
+    local ok, err = pcall(function()
+        local elapsed = getTimestampMs() - self.startMs
+        local t = elapsed / self.duration
+        if t >= 1 then
+            RBD_ScreenFX.active = nil
+            self:removeFromUIManager()
+            return
+        end
+        local w = getCore():getScreenWidth()
+        local h = getCore():getScreenHeight()
+        self:setWidth(w)
+        self:setHeight(h)
 
-    local fade = 1 - t
-    self:drawRect(0, 0, w, h, fade * 0.92, 0, 0, 0)
-    -- heartbeat: three red pulses across the fade
-    local pulse = math.abs(math.sin(t * math.pi * 3))
-    self:drawRect(0, 0, w, h, fade * 0.35 * pulse, 0.45, 0.0, 0.06)
+        local fade = 1 - t
+        self:drawRect(0, 0, w, h, fade * 0.92, 0, 0, 0)
+        -- heartbeat: three red pulses across the fade
+        local pulse = math.abs(math.sin(t * math.pi * 3))
+        self:drawRect(0, 0, w, h, fade * 0.35 * pulse, 0.45, 0.0, 0.06)
+    end)
+    if not ok then
+        -- a broken effect must never spam per-frame errors; kill it
+        if ReturnByDeath then ReturnByDeath.reportError("screenFX", err) end
+        RBD_ScreenFX.active = nil
+        pcall(function() self:removeFromUIManager() end)
+    end
 end
 
 --- Trigger the effect (no-op if one is already playing).

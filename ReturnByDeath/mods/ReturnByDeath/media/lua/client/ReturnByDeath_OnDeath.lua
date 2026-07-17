@@ -131,7 +131,9 @@ end
 --- Is a return currently possible (anchor exists, daily limit not spent)?
 function RBD.canReturn(player)
     local data = RBD.getData(player)
-    if not data.checkpoint then return false end
+    local hasAnchor = (data.anchors ~= nil and #data.anchors > 0)
+        or data.checkpoint ~= nil
+    if not hasAnchor then return false end
     local maxPerDay = RBD.getOption("MaxReturnsPerDay")
     if maxPerDay and maxPerDay > 0 then
         local day = math.floor(RBD.worldHours() / 24)
@@ -162,12 +164,15 @@ end
 ------------------------------------------------------------------------------
 
 function RBD.triggerReturn(player, damageType)
-    local index = player:getPlayerNum()
+    local index = RBD.playerIndex(player)
     if activeReturns[index] then return true end
     if not RBD.canReturn(player) then return false end
 
     local data = RBD.getData(player)
-    local snapshot = data.checkpoint
+    -- newest anchor whose surroundings are survivable; steps back through
+    -- history if the latest one is overrun
+    local snapshot = RBD.pickAnchor(player)
+    if snapshot == nil then return false end
 
     -- daily-limit bookkeeping
     local day = math.floor(RBD.worldHours() / 24)
@@ -218,7 +223,7 @@ end
 ------------------------------------------------------------------------------
 
 local function guardCheck(player, damageType)
-    local index = player:getPlayerNum()
+    local index = RBD.playerIndex(player)
     if activeReturns[index] then return end
     if player:isDead() then return end
     if not RBD.hasTrait(player) then return end
@@ -243,8 +248,8 @@ local function guardCheck(player, damageType)
 end
 
 local function onPlayerUpdate(player)
-    if not player:isLocalPlayer() then return end
-    local index = player:getPlayerNum()
+    if not RBD.isLocal(player) then return end
+    local index = RBD.playerIndex(player)
 
     local ticks = activeReturns[index]
     if ticks then
@@ -268,8 +273,8 @@ end
 
 local function onPlayerGetDamage(character, damageType, damage)
     if not instanceof(character, "IsoPlayer") then return end
-    if not character:isLocalPlayer() then return end
-    lastDamage[character:getPlayerNum()] = tostring(damageType)
+    if not RBD.isLocal(character) then return end
+    lastDamage[RBD.playerIndex(character)] = tostring(damageType)
     -- react immediately to big hits instead of waiting for the next update
     guardCheck(character, tostring(damageType))
 end
@@ -314,7 +319,7 @@ local function hideDeathUI()
 end
 
 local function onPlayerDeath(player)
-    if not player:isLocalPlayer() then return end
+    if not RBD.isLocal(player) then return end
 
     if isWitchKilled(player) then
         -- the taboo kill is absolute; consume the flag, vanilla death proceeds
@@ -346,7 +351,7 @@ local function onPlayerDeath(player)
     end
 
     RBD.log("Post-mortem revive accepted; running return")
-    RBD.triggerReturn(player, lastDamage[player:getPlayerNum()])
+    RBD.triggerReturn(player, lastDamage[RBD.playerIndex(player)])
     table.insert(corpseSweeps, { ticks = 30, x = math.floor(dx), y = math.floor(dy), z = math.floor(dz) })
     uiSuppressTicks = 300 -- keep swatting the death UI for ~5s
 end
@@ -368,11 +373,11 @@ local function onTickCleanup()
     end
 end
 
-Events.OnPlayerUpdate.Add(onPlayerUpdate)
+Events.OnPlayerUpdate.Add(RBD.wrap("playerUpdateGuard", onPlayerUpdate))
 -- OnPlayerGetDamage is the one event here without a decade of API stability;
 -- the update-loop guard fully covers its job if a build lacks it
 if Events.OnPlayerGetDamage then
-    Events.OnPlayerGetDamage.Add(onPlayerGetDamage)
+    Events.OnPlayerGetDamage.Add(RBD.wrap("damageGuard", onPlayerGetDamage))
 end
-Events.OnPlayerDeath.Add(onPlayerDeath)
-Events.OnTick.Add(onTickCleanup)
+Events.OnPlayerDeath.Add(RBD.wrap("deathFallback", onPlayerDeath))
+Events.OnTick.Add(RBD.wrap("cleanupTicker", onTickCleanup))
