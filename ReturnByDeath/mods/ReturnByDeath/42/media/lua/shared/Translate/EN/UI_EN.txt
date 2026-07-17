@@ -8,6 +8,9 @@ UI_EN = {
 	UI_RBD_ContextSetSafePointTooltip = "Deliberately anchor your loop to this moment. If you die, you will return here with what you carry right now.",
 	UI_RBD_ContextSetSafePointCooldown = "The world resists. You can anchor a new safe point in %1 more in-game minutes.",
 	UI_RBD_ContextReflect = "Reflect on your loops",
+	UI_RBD_ContextAccept = "Accept the Witch's contract (Return by Death)",
+	UI_RBD_ContextAcceptTooltip = "Bind your death to a returning loop. From now on, dying sends you back to your last safe point - at a cost to your mind. This cannot be undone.",
+	UI_RBD_Accepted = "The Witch's shadow settles over you. Death is no longer the end.",
 
 	UI_RBD_SafePointSet = "Safe point anchored.",
 	UI_RBD_SafePointAuto = "Your loop quietly re-anchors itself...",

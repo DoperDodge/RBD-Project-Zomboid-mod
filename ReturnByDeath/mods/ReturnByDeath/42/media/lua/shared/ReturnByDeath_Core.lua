@@ -33,6 +33,9 @@ ReturnByDeath.Defaults = {
     TellKillRange            = 10,   -- max tiles between teller and listener
     WitchScent               = false,-- attract zombies after a return (brutal, off by default)
     WitchScentRadius         = 40,
+    AllowSelfGrant           = true, -- allow right-click "Accept the Witch's contract"
+                                     -- (the only way to become a bearer on B42.19+,
+                                     -- where custom creation-screen traits can't register)
 }
 
 --- Read a Return by Death sandbox option with a safe fallback.
@@ -44,11 +47,25 @@ function ReturnByDeath.getOption(name)
     return ReturnByDeath.Defaults[name]
 end
 
---- Does this character carry the Return by Death trait?
+--- Is the trait system this mod registers into available in this build?
+--- (Build 42.19+ removed the Lua TraitFactory; traits became engine-side
+--- CharacterTrait objects with no visible Lua registration hook yet.)
+function ReturnByDeath.traitSystemAvailable()
+    return TraitFactory ~= nil and TraitFactory.addTrait ~= nil
+end
+
+--- Does this character carry Return by Death?
+--- True when they picked the trait in character creation (Build 41), or
+--- accepted the Witch's contract via the right-click menu (the Build 42.19+
+--- fallback, stored as a bearer flag in their ModData).
 function ReturnByDeath.hasTrait(character)
-    return character ~= nil
-        and character.HasTrait ~= nil
-        and character:HasTrait(ReturnByDeath.TRAIT)
+    if character == nil then return false end
+    local ok, res = pcall(function() return character:HasTrait(ReturnByDeath.TRAIT) end)
+    if ok and res == true then return true end
+    ok, res = pcall(function() return character:hasTrait(ReturnByDeath.TRAIT) end)
+    if ok and res == true then return true end
+    local okMd, data = pcall(function() return character:getModData().ReturnByDeath end)
+    return okMd and data ~= nil and data.bearer == true
 end
 
 --- Per-character mod-data table for this mod (persists in the save).
@@ -56,6 +73,7 @@ function ReturnByDeath.getData(character)
     local md = character:getModData()
     if md.ReturnByDeath == nil then
         md.ReturnByDeath = {
+            bearer = false,     -- accepted the contract (B42 trait fallback)
             loops = 0,          -- how many times this character has returned
             returnsToday = 0,   -- returns used against MaxReturnsPerDay
             lastReturnDay = -1, -- world-age day of the last counted return

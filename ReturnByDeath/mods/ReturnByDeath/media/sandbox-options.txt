@@ -95,3 +95,9 @@ option ReturnByDeath.WitchScentRadius
 	type = integer, min = 10, max = 150, default = 40,
 	page = ReturnByDeath, translation = RBD_WitchScentRadius,
 }
+
+option ReturnByDeath.AllowSelfGrant
+{
+	type = boolean, default = true,
+	page = ReturnByDeath, translation = RBD_AllowSelfGrant,
+}

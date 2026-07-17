@@ -1,16 +1,19 @@
 --[[
     Return by Death - trait registration
     Registers "Return by Death" as a negative trait worth +1 point in the
-    character creation screen.
+    character creation screen ON BUILDS THAT SUPPORT IT (Build 41 and early
+    Build 42, which expose TraitFactory to Lua).
 
-    In TraitFactory.addTrait the cost is negative for negative traits: a cost
-    of -1 lists the trait in the negative column and grants +1 point back
+    Build 42.19+ removed TraitFactory: traits became engine-side
+    CharacterTrait objects served by CharacterTraitDefinition, with no
+    documented Lua registration hook. On those builds this file simply does
+    nothing (no console errors), and players become bearers via the
+    right-click "Accept the Witch's contract" option instead
+    (ReturnByDeath_ContextMenu.lua) - same mechanics, stored in ModData.
+
+    In TraitFactory.addTrait the cost is negative for negative traits: a
+    cost of -1 lists the trait in the negative column and grants +1 point
     (same convention as vanilla Sunday Driver).
-
-    Registration is idempotent and hooked to both OnGameBoot and
-    OnMainMenuEnter: Build 42 does not always re-fire boot events after the
-    mod list changes, so the main-menu retry catches sessions where the mod
-    was enabled without a full game restart.
 
     Runs on: client + server (shared).
 ]]
@@ -18,11 +21,12 @@
 require "ReturnByDeath_Core"
 
 local function registerTrait()
-    local exists = false
-    pcall(function()
-        exists = TraitFactory.getTrait(ReturnByDeath.TRAIT) ~= nil
-    end)
-    if exists then return end
+    if not ReturnByDeath.traitSystemAvailable() then
+        return -- B42.19+: no Lua trait registry; contract fallback handles it
+    end
+    local existing = nil
+    pcall(function() existing = TraitFactory.getTrait(ReturnByDeath.TRAIT) end)
+    if existing ~= nil then return end
 
     TraitFactory.addTrait(
         ReturnByDeath.TRAIT,
