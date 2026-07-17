@@ -90,7 +90,7 @@ end
 local function restoreBody(player)
     local bd = player:getBodyDamage()
     if RBD.getOption("RestoreHealth") then
-        pcall(function() bd:RestoreToFullHealth() end)
+        RBD.try("restoreBody", function() bd:RestoreToFullHealth() end)
     else
         local floor = math.min(100, RBD.getOption("DeathGuardThreshold") + 15)
         local ok = pcall(function()
@@ -111,17 +111,18 @@ end
 
 local function applyPenalties(player, loops)
     local esc = 1 + math.max(0, loops - 1) * (RBD.getOption("PenaltyEscalation") / 100)
-    pcall(function()
+    -- named so a failing stat API shows up in console.txt exactly once
+    RBD.try("penalty.depression", function()
         local bd = player:getBodyDamage()
         local dep = RBD.getOption("DepressionPerLoop") * esc
         bd:setUnhappynessLevel(math.min(100, bd:getUnhappynessLevel() + dep))
     end)
-    pcall(function()
+    RBD.try("penalty.stress", function()
         local stats = player:getStats()
         local stress = (RBD.getOption("StressPerLoop") / 100) * esc
         stats:setStress(math.min(1, stats:getStress() + stress))
     end)
-    pcall(function()
+    RBD.try("penalty.panic", function()
         local stats = player:getStats()
         local panic = RBD.getOption("PanicPerLoop") * esc
         stats:setPanic(math.min(100, stats:getPanic() + panic))
@@ -189,22 +190,37 @@ function RBD.triggerReturn(player, damageType)
 
     RBD.log("Return by Death #" .. data.loops .. " (" .. cause .. ")")
 
+    -- where the body would have fallen; used by the anti-dupe sweep
+    local deathX, deathY, deathZ = 0, 0, 0
+    pcall(function() deathX, deathY, deathZ = player:getX(), player:getY(), player:getZ() end)
+
     -- shield the player while the world snaps back
     pcall(function() player:setGodMod(true) end)
     activeReturns[index] = 240 -- ~4s of protection
 
     restoreBody(player)
 
-    pcall(function()
+    -- anti-dupe: anything from the snapshot lying on the ground near the
+    -- death spot or the anchor belongs to the old timeline - erase it
+    if RBD.sweepSnapshotItems then
+        RBD.sweepSnapshotItems(snapshot, {
+            { x = deathX, y = deathY, z = deathZ },
+            { x = snapshot.x, y = snapshot.y, z = snapshot.z },
+        })
+    end
+
+    RBD.try("teleport", function()
         player:setX(snapshot.x); player:setY(snapshot.y); player:setZ(snapshot.z)
         player:setLx(snapshot.x); player:setLy(snapshot.y); player:setLz(snapshot.z)
     end)
 
-    pcall(function() RBD.restoreInventory(player, snapshot) end)
+    RBD.try("restoreInventory", function() RBD.restoreInventory(player, snapshot) end)
 
     applyPenalties(player, data.loops)
 
-    if RBD_ScreenFX then pcall(function() RBD_ScreenFX.play() end) end
+    if RBD_ScreenFX then
+        RBD.try("screenFX", function() RBD_ScreenFX.play() end)
+    end
     RBD.playReturnAudio(false)
     requestWitchScent(player, snapshot)
 
@@ -308,14 +324,19 @@ local function removeCorpsesAt(x, y, z)
     end)
 end
 
+local DEATH_UI_CLASSES = { "ISPostDeathUI", "ISDeathScreen", "DeathScreenUI" }
+
 local function hideDeathUI()
-    pcall(function()
-        if ISPostDeathUI and ISPostDeathUI.instance then
-            ISPostDeathUI.instance:setVisible(false)
-            ISPostDeathUI.instance:removeFromUIManager()
-            ISPostDeathUI.instance = nil
-        end
-    end)
+    for _, name in ipairs(DEATH_UI_CLASSES) do
+        pcall(function()
+            local cls = _G and _G[name] or nil
+            if cls and cls.instance then
+                cls.instance:setVisible(false)
+                cls.instance:removeFromUIManager()
+                cls.instance = nil
+            end
+        end)
+    end
 end
 
 local function onPlayerDeath(player)
