@@ -18,9 +18,20 @@ require "ReturnByDeath_Core"
 
 local RBD = ReturnByDeath
 
+--- Server-side bearer check. On Build 41 the trait is server-visible and
+--- authoritative. On B42.19+ there is no Lua trait registry and the
+--- contract flag lives in the sender's client ModData, so the trait check
+--- is skipped there - the sandbox toggle and range checks still gate the kill.
+local function senderIsBearer(player)
+    if RBD.traitSystemAvailable() then
+        return RBD.hasTrait(player)
+    end
+    return true
+end
+
 local function handleTellAndKill(player, args)
     if not RBD.getOption("EnableTellKill") then return end
-    if not RBD.hasTrait(player) then return end
+    if not senderIsBearer(player) then return end
     if not args or args.target == nil then return end
 
     local target = getPlayerByOnlineID(args.target)
@@ -43,7 +54,7 @@ end
 
 local function handleWitchScent(player)
     if not RBD.getOption("WitchScent") then return end
-    if not RBD.hasTrait(player) then return end
+    if not senderIsBearer(player) then return end
     local radius = RBD.getOption("WitchScentRadius")
     pcall(function()
         getWorldSoundManager():addSound(nil,

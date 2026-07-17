@@ -71,6 +71,27 @@ local function onTellSelected(worldobjects, actor, target)
     end
 end
 
+--- Attach a tooltip if this build exposes the vanilla helper.
+local function addTooltip(option, text)
+    local ok = pcall(function()
+        local tooltip = ISWorldObjectContextMenu.addToolTip()
+        tooltip.description = text
+        option.toolTip = tooltip
+    end)
+    return ok
+end
+
+local function onAcceptContract(worldobjects, player)
+    local data = RBD.getData(player)
+    if data.bearer then return end
+    data.bearer = true
+    RBD.log("Contract accepted: " .. tostring(player:getUsername()))
+    pcall(function()
+        player:setHaloNote(getText("UI_RBD_Accepted"), 170, 60, 255, 400)
+    end)
+    RBD.captureCheckpoint(player, true)
+end
+
 local function onSetSafePoint(worldobjects, player)
     local data = RBD.getData(player)
     local cooldown = RBD.getOption("ManualCheckpointCooldown")
@@ -103,7 +124,17 @@ end
 local function onFillWorldObjectContextMenu(playerIndex, context, worldobjects, test)
     local player = getSpecificPlayer(playerIndex)
     if not player or player:isDead() then return end
-    if not RBD.hasTrait(player) then return end
+
+    if not RBD.hasTrait(player) then
+        -- On builds without the creation-screen trait (B42.19+), the only
+        -- way in is accepting the contract here. Sandbox-gated.
+        if RBD.getOption("AllowSelfGrant") then
+            local acceptOption = context:addOption(getText("UI_RBD_ContextAccept"),
+                worldobjects, onAcceptContract, player)
+            addTooltip(acceptOption, getText("UI_RBD_ContextAcceptTooltip"))
+        end
+        return
+    end
 
     -- manual safe point
     local data = RBD.getData(player)
@@ -111,15 +142,13 @@ local function onFillWorldObjectContextMenu(playerIndex, context, worldobjects, 
     local sinceManual = (RBD.worldHours() - (data.lastManual or -1000)) * 60
     local option = context:addOption(getText("UI_RBD_ContextSetSafePoint"),
         worldobjects, onSetSafePoint, player)
-    local tooltip = ISWorldObjectContextMenu.addToolTip()
     if cooldown > 0 and sinceManual < cooldown then
         option.notAvailable = true
-        tooltip.description = getText("UI_RBD_ContextSetSafePointCooldown",
-            math.ceil(cooldown - sinceManual))
+        addTooltip(option, getText("UI_RBD_ContextSetSafePointCooldown",
+            math.ceil(cooldown - sinceManual)))
     else
-        tooltip.description = getText("UI_RBD_ContextSetSafePointTooltip")
+        addTooltip(option, getText("UI_RBD_ContextSetSafePointTooltip"))
     end
-    option.toolTip = tooltip
 
     -- loop journal flavor
     context:addOption(getText("UI_RBD_ContextReflect"), worldobjects, onReflect, player)
@@ -132,9 +161,7 @@ local function onFillWorldObjectContextMenu(playerIndex, context, worldobjects, 
             local opt = context:addOption(
                 getText("UI_RBD_ContextTell") .. " (" .. name .. ")",
                 worldobjects, onTellSelected, player, target)
-            local tt = ISWorldObjectContextMenu.addToolTip()
-            tt.description = getText("UI_RBD_ContextTellTooltip", name)
-            opt.toolTip = tt
+            addTooltip(opt, getText("UI_RBD_ContextTellTooltip", name))
         end
     end
 end

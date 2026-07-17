@@ -48,4 +48,7 @@ Sandbox_EN = {
 
 	Sandbox_RBD_WitchScentRadius = "Witch's scent radius (tiles)",
 	Sandbox_RBD_WitchScentRadius_tooltip = "How far the post-return miasma pulse attracts zombies from.",
+
+	Sandbox_RBD_AllowSelfGrant = "Allow accepting the contract in-game",
+	Sandbox_RBD_AllowSelfGrant_tooltip = "Shows a right-click option 'Accept the Witch's contract' for characters without the trait. This is the only way to gain Return by Death on Build 42.19+, where mods cannot add creation-screen traits.",
 }
