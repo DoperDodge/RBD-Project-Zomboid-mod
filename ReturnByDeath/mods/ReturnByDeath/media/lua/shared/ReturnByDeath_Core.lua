@@ -171,7 +171,7 @@ end
 ------------------------------------------------------------------------------
 
 local lastAudioMs = 0
-local AUDIO_LENGTH_MS = 12000 -- the clip is ~12s; never stack overlapping plays
+local AUDIO_DEDUPE_MS = 3000 -- don't stack plays, but rapid test deaths still get one
 
 --- Play the Return by Death sting locally. `force` skips the sandbox toggle
 --- (used for the taboo kill, which should always be heard).
@@ -179,9 +179,21 @@ function ReturnByDeath.playReturnAudio(force)
     if isServer() then return end
     if not force and not ReturnByDeath.getOption("PlayReturnAudio") then return end
     local now = ReturnByDeath.nowMs()
-    if now - lastAudioMs < AUDIO_LENGTH_MS then return end
+    if now - lastAudioMs < AUDIO_DEDUPE_MS then return end
     lastAudioMs = now
-    pcall(function()
+    local played = false
+    local ok, err = pcall(function()
         getSoundManager():PlaySound(ReturnByDeath.SOUND, false, 0)
+        played = true
     end)
+    if not ok then ReturnByDeath.reportError("audio.soundManager", err) end
+    if not played then
+        -- fallback route: the player's own sound emitter
+        local ok2, err2 = pcall(function()
+            getPlayer():getEmitter():playSound(ReturnByDeath.SOUND)
+            played = true
+        end)
+        if not ok2 then ReturnByDeath.reportError("audio.emitter", err2) end
+    end
+    ReturnByDeath.log("Return audio " .. (played and "played" or "FAILED (see errors above)"))
 end
